@@ -19,6 +19,7 @@ import (
 var baseURL string
 var httpClient = &http.Client{Timeout: 15 * time.Second}
 
+// Request to GDAX api.
 func Request(method string, uri string, msg interface{}) (res *http.Response, err error) {
 	var data []byte
 	var body *bytes.Reader
@@ -45,17 +46,6 @@ func Request(method string, uri string, msg interface{}) (res *http.Response, er
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 
-	// XXX: Sandbox time is off right now
-	// if os.Getenv("TEST_COINBASE_OFFSET") != "" {
-	// 	inc, err := strconv.Atoi(os.Getenv("TEST_COINBASE_OFFSET"))
-	// 	if err != nil {
-	// 		return res, err
-	// 	}
-
-	// 	timestamp = strconv.FormatInt(time.Now().Unix()+int64(inc), 10)
-	// }
-
-	//addHeaders(method, uri, timestamp, string(data), req)
 	req.Header.Add(`Accept`, `application/json`)
 	req.Header.Add(`Content-Type`, `application/json`)
 	req.Header.Add(`User-Agent`, `GODAX Bot 1.0`)
