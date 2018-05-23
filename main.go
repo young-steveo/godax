@@ -104,7 +104,9 @@ func main() {
 	// Send Subscribe message to GDAX
 	gdax.Subscribe()
 
-	gdax.PlaceOrder(market.MakeOrder("sell", "1.0", "127.12"))
+	o := market.MakeOrder("sell", "1.0", "127.12")
+	log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
+	gdax.Request(`POST`, `/orders`, o)
 
 	exitCode := <-exit // wait for something to close.
 	fmt.Println("Bye!")
