@@ -6,13 +6,12 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/young-steveo/godax/gdax"
 	"github.com/young-steveo/godax/market"
-
 	"github.com/young-steveo/godax/message"
 
 	"github.com/buger/jsonparser"
 	"github.com/joho/godotenv"
-	"github.com/young-steveo/godax/gdax"
 )
 
 func main() {
