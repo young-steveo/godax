@@ -6,11 +6,15 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/young-steveo/godax/message"
+
+	"github.com/buger/jsonparser"
 	"github.com/joho/godotenv"
 	"github.com/young-steveo/godax/gdax"
 )
 
 func main() {
+	fmt.Println(string(message.Subscribe()))
 	log.SetOutput(os.Stdout)
 	log.Println(`¡Hola! Let's make some trades`)
 	log.Println(`===`)
@@ -51,6 +55,13 @@ func main() {
 				return
 			}
 			log.Println(string(message))
+
+			typ, err := jsonparser.GetUnsafeString(message, `type`)
+
+			switch typ {
+			case `ticker`:
+
+			}
 		}
 	}()
 

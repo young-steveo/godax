@@ -10,7 +10,7 @@ import (
 // Subscribe to GDAX messages from channels
 func Subscribe() {
 	log.Println(`Subscribing to channels`)
-	err := ws.WriteMessage(websocket.TextMessage, []byte(message.Subscribe))
+	err := ws.WriteMessage(websocket.TextMessage, message.Subscribe())
 	if err != nil {
 		log.Fatal("Could not subscribe: ", err)
 		return
