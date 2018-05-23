@@ -19,7 +19,7 @@ import (
 var baseURL string
 var httpClient = &http.Client{Timeout: 15 * time.Second}
 
-func request(method string, uri string, msg interface{}) (res *http.Response, err error) {
+func Request(method string, uri string, msg interface{}) (res *http.Response, err error) {
 	var data []byte
 	var body *bytes.Reader
 
