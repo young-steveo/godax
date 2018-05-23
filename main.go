@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/young-steveo/godax/market"
+
 	"github.com/young-steveo/godax/message"
 
 	"github.com/buger/jsonparser"
@@ -27,10 +29,12 @@ func main() {
 	}
 
 	/**
-	 * Signal Processing
+	 * Channels
 	 */
 	sigs := make(chan os.Signal)
-	done := make(chan int)
+	exit := make(chan int)
+	done := make(chan []byte)
+	received := make(chan []byte)
 
 	signal.Notify(sigs, os.Interrupt)
 
@@ -46,7 +50,7 @@ func main() {
 
 	// Consume messages
 	go func() {
-		defer close(done) // if this goroutine returns, close the done channel
+		defer close(exit) // if this goroutine returns, close the exit channel
 		for {
 			_, message, err := gdax.ReadMessage()
 			if err != nil {
@@ -54,20 +58,45 @@ func main() {
 				gdax.Unsubscribe()
 				return
 			}
-			log.Println(string(message))
 
-			typ, err := jsonparser.GetUnsafeString(message, `type`)
+			typ, _ := jsonparser.GetUnsafeString(message, `type`)
 
 			switch typ {
-			case `ticker`:
+			case `done`:
+				done <- message
+			case `received`:
+				received <- message
+			}
+		}
+	}()
 
+	// Handle Done messages
+	go func() {
+		for {
+			if message, more := <-done; more {
+				log.Println(string(message))
+				// need to clean out local order and place new orders
+			} else {
+				break
+			}
+		}
+	}()
+
+	// Handle Received messages
+	go func() {
+		for {
+			if message, more := <-received; more {
+				log.Println(string(message))
+				// need to match client order id with server order id and update the order
+			} else {
+				break
 			}
 		}
 	}()
 
 	// Graceful shut down
 	go func() {
-		defer close(done) // close the done channel when we are finished cleaning up.
+		defer close(exit) // close the exit channel when we are finished cleaning up.
 		<-sigs            // wait for a signal.
 		log.Printf("Shutting down")
 		gdax.Unsubscribe()
@@ -76,7 +105,9 @@ func main() {
 	// Send Subscribe message to GDAX
 	gdax.Subscribe()
 
-	exitCode := <-done // wait for something to close.
+	gdax.PlaceOrder(market.MakeOrder("sell", "1.0", "127.12"))
+
+	exitCode := <-exit // wait for something to close.
 	fmt.Println("Bye!")
 	os.Exit(exitCode)
 }
