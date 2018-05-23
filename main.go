@@ -6,12 +6,21 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/joho/godotenv"
 	"github.com/young-steveo/godax/gdax"
 )
 
 func main() {
 	log.SetOutput(os.Stdout)
 	log.Println(`¡Hola! Let's make some trades`)
+	log.Println(`===`)
+
+	log.Println(`Bootstrapping environment`)
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(`Error loading .env file`, err.Error())
+	}
 
 	/**
 	 * Signal Processing
@@ -24,7 +33,7 @@ func main() {
 	/**
 	 * Connection
 	 */
-	err := gdax.Connect()
+	err = gdax.Connect()
 	if err != nil {
 		log.Fatal("Could not connect: ", err)
 		return
