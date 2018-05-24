@@ -30,14 +30,17 @@ func main() {
 	}
 
 	/**
-	 * Channels
+	 * Signals
 	 */
 	sigs := make(chan os.Signal)
 	exit := make(chan int)
+	signal.Notify(sigs, os.Interrupt)
+
+	/**
+	 * Message Channels
+	 */
 	done := make(chan []byte)
 	received := make(chan []byte)
-
-	signal.Notify(sigs, os.Interrupt)
 
 	/**
 	 * Connection
@@ -49,9 +52,22 @@ func main() {
 	}
 	defer gdax.Close() // close the websocket when the main function exits.
 
-	orders := make(market.MyBook, 0)
+	/**
+	 * Manage the Book
+	 */
+	adds := make(chan *market.Order)
+	reads := make(chan *market.GetByClientID)
+	updates := make(chan *market.UpdateServerID)
+	go func() {
+		close := make(chan bool)
+		book := make(market.MyBook, 0)
+		keeper := market.MakeKeeper(book, adds, reads, updates)
+		keeper.Listen(close) // contains a blocking loop
+	}()
 
-	// Consume messages
+	/**
+	 * Consume all websocket messages and route them to the proper channel.
+	 */
 	go func() {
 		defer close(exit) // if this goroutine returns, close the exit channel
 		for {
@@ -61,6 +77,7 @@ func main() {
 				gdax.Unsubscribe()
 				return
 			}
+			log.Println(string(message))
 
 			typ, _ := jsonparser.GetUnsafeString(message, `type`)
 
@@ -73,11 +90,13 @@ func main() {
 		}
 	}()
 
-	// Handle Done messages
+	/**
+	 * Done messages from GDAX
+	 */
 	go func() {
 		for {
-			if message, more := <-done; more {
-				log.Println(string(message))
+			if _, more := <-done; more {
+
 				// need to clean out local order and place new orders
 			} else {
 				break
@@ -85,11 +104,14 @@ func main() {
 		}
 	}()
 
-	// Handle Received messages
+	/**
+	 * Received messages from GDAX
+	 */
 	go func() {
+		orders := make(chan *market.Order)
+		defer close(orders)
 		for {
 			if message, more := <-received; more {
-				log.Println(string(message))
 				// need to match client order id with server order id and update the order
 				coid, err := jsonparser.GetUnsafeString(message, `client_oid`)
 				if err != nil {
@@ -99,12 +121,6 @@ func main() {
 				clientID, err := uuid.Parse(coid)
 				if err != nil {
 					log.Printf(`Could not parse client_oid`)
-					continue
-				}
-
-				order := orders.GetByClientID(clientID)
-				if order == nil {
-					log.Printf(`Could not find order by client_oid: %s`, coid)
 					continue
 				}
 
@@ -119,14 +135,16 @@ func main() {
 					continue
 				}
 
-				order.ServerID = orderID
+				updates <- &market.UpdateServerID{ClientID: clientID, ServerID: orderID, Orders: orders}
 			} else {
 				break
 			}
 		}
 	}()
 
-	// Graceful shut down
+	/**
+	 * Graceful shutdown.  Unsubscribes to the websocket
+	 */
 	go func() {
 		defer close(exit) // close the exit channel when we are finished cleaning up.
 		<-sigs            // wait for a signal.
@@ -134,17 +152,21 @@ func main() {
 		gdax.Unsubscribe()
 	}()
 
-	// Send Subscribe message to GDAX
+	/**
+	 * Subscribe message to GDAX initiates the websocket messages.
+	 */
 	gdax.Subscribe()
 
-	o := market.MakeOrder("sell", "1.0", "127.13")
-
-	orders = append(orders, o)
-
+	// TEMPORARY manual code to make an order
+	o := market.MakeOrder("sell", "5.0", "120.13")
+	adds <- o // Add to the keeper's book
 	log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
 	gdax.Request(`POST`, `/orders`, o)
 
-	exitCode := <-exit // wait for something to close.
+	/**
+	 * Block until an exit message is received
+	 */
+	exitCode := <-exit
 	fmt.Println("Bye!")
 	os.Exit(exitCode)
 }
