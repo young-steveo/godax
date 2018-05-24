@@ -4,26 +4,35 @@ import (
 	"github.com/google/uuid"
 )
 
+// Size of the order.
+type Size string
+
+// Price of the order.
+type Price string
+
+// Side of the order "buy" or "sell"
+type Side string
+
 // Order is a json serializeable order struct
 type Order struct {
 	ServerID    uuid.UUID   `json:"-"`
 	ClientID    uuid.UUID   `json:"client_oid"`
-	Typ         string      `json:"type"`
-	Side        string      `json:"side"`
+	Type        string      `json:"type"`
+	Side        Side        `json:"side"`
 	ProductID   string      `json:"product_id"`
 	Stp         STPFlag     `json:"stp"`
-	Size        string      `json:"size"`
-	Price       string      `json:"price"`
+	Size        Size        `json:"size"`
+	Price       Price       `json:"price"`
 	TimeInForce TimeInForce `json:"time_in_force"`
 	PostOnly    bool        `json:"post_only"`
 }
 
 // MakeOrder makes a new order
-func MakeOrder(side string, size string, price string) *Order {
+func MakeOrder(side Side, size Size, price Price) *Order {
 	clientID := uuid.New()
 	return &Order{
 		ClientID:    clientID,
-		Typ:         `limit`,
+		Type:        `limit`,
 		Side:        side,
 		ProductID:   `LTC-USD`,
 		Stp:         CancelOldest,

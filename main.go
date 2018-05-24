@@ -55,13 +55,11 @@ func main() {
 	/**
 	 * Manage the Book
 	 */
-	adds := make(chan *market.Order)
-	reads := make(chan *market.GetByClientID)
-	updates := make(chan *market.UpdateServerID)
+	commands := make(chan market.OrderCommand)
 	go func() {
 		close := make(chan bool)
 		book := make(market.MyBook, 0)
-		keeper := market.MakeKeeper(book, adds, reads, updates)
+		keeper := market.MakeKeeper(book, commands)
 		keeper.Listen(close) // contains a blocking loop
 	}()
 
@@ -135,7 +133,7 @@ func main() {
 					continue
 				}
 
-				updates <- &market.UpdateServerID{ClientID: clientID, ServerID: orderID, Orders: orders}
+				commands <- &market.UpdateOrder{ClientIDValue: clientID, ServerIDValue: orderID, Resp: orders}
 			} else {
 				break
 			}
@@ -158,8 +156,14 @@ func main() {
 	gdax.Subscribe()
 
 	// TEMPORARY manual code to make an order
-	o := market.MakeOrder("sell", "5.0", "120.13")
-	adds <- o // Add to the keeper's book
+	o := market.MakeOrder(market.Side("sell"), market.Size("5.0"), market.Price("117.03"))
+
+	orders := make(chan *market.Order)
+	defer close(orders)
+	create := &market.CreateOrder{Order: o, Resp: orders}
+	commands <- create
+	create.Orders() <- o
+
 	log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
 	gdax.Request(`POST`, `/orders`, o)
 
