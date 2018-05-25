@@ -6,16 +6,18 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/young-steveo/godax/market"
 )
 
 type subscribeMessage struct {
-	Typ        string   `json:"type"`
-	ProductIDs []string `json:"product_ids"`
-	Channels   []string `json:"channels"`
-	Key        string   `json:"key,omitempty"`
-	Passphrase string   `json:"passphrase,omitempty"`
-	Timestamp  string   `json:"timestamp,omitempty"`
-	Signature  string   `json:"signature,omitempty"`
+	Typ        string             `json:"type"`
+	ProductIDs []market.ProductID `json:"product_ids"`
+	Channels   []string           `json:"channels"`
+	Key        string             `json:"key,omitempty"`
+	Passphrase string             `json:"passphrase,omitempty"`
+	Timestamp  string             `json:"timestamp,omitempty"`
+	Signature  string             `json:"signature,omitempty"`
 }
 
 // Subscribe is a GDAX websocket subscribe message
@@ -30,7 +32,7 @@ func Subscribe() []byte {
 
 	message, _ := json.Marshal(subscribeMessage{
 		`subscribe`,
-		[]string{`LTC-USD`},
+		[]market.ProductID{market.ProductID{market.LTC, market.BTC}},
 		[]string{`heartbeat`, `user`, `ticker`},
 		key,
 		passphrase,

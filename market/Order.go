@@ -19,7 +19,7 @@ type Order struct {
 	ClientID    uuid.UUID   `json:"client_oid"`
 	Type        string      `json:"type"`
 	Side        Side        `json:"side"`
-	ProductID   string      `json:"product_id"`
+	ProductID   ProductID   `json:"product_id"`
 	Stp         STPFlag     `json:"stp"`
 	Size        Size        `json:"size"`
 	Price       Price       `json:"price"`
@@ -34,7 +34,7 @@ func MakeOrder(side Side, size Size, price Price) *Order {
 		ClientID:    clientID,
 		Type:        `limit`,
 		Side:        side,
-		ProductID:   `LTC-USD`,
+		ProductID:   ProductID([]Ticker{LTC, USD}),
 		Stp:         CancelOldest,
 		Size:        size,
 		Price:       price,
