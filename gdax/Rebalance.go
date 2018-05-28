@@ -11,22 +11,22 @@ import (
 )
 
 // Rebalance will try to use limit orders to make sure both assets of a pair are balanced.
-func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan market.OrderCommand) chan bool {
+func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan market.OrderCommand) chan int {
 	log.Printf(`Rebalancing %s pair`, pair)
-	done := make(chan bool)
+	done := make(chan int)
 	go func() {
 		log.Printf(`Requesting %s product information`, pair)
 		resp, err := Request(`GET`, fmt.Sprintf(`/products/%s/ticker`, pair), nil)
 		if err != nil {
 			log.Printf(`Error making request: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Printf(`Error parsing body: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 
@@ -34,7 +34,7 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 		p, err := jsonparser.GetString(body, `price`)
 		if err != nil {
 			log.Printf(`Error parsing price: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 
@@ -47,21 +47,21 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			log.Printf(`Error converting price to float: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 
 		leftBalance, err := strconv.ParseFloat(leftAccount.Available, 64)
 		if err != nil {
 			log.Printf(`Error converting price to float: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 
 		rightBalance, err := strconv.ParseFloat(rightAccount.Available, 64)
 		if err != nil {
 			log.Printf(`Error converting price to float: %s`, err.Error())
-			done <- false
+			done <- -1
 			return
 		}
 
@@ -73,6 +73,8 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 		log.Printf(`Current %s Balance: %f`, pair[1], rightBalance)
 
 		log.Printf(`Target %s Balance: %f`, pair[0], newLeftBal)
+
+		orderMade := 0
 
 		if newLeftBal > leftBalance*0.8 {
 			log.Printf(
@@ -102,6 +104,8 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 			log.Printf(`Placing an order to %s %s %s for %s %s`, o.Side, o.Size, pair[0], o.Price, pair[1])
 			Request(`POST`, `/orders`, o)
 
+			orderMade = 1
+
 		} else if newLeftBal < leftBalance*0.8 {
 			log.Printf(
 				`Target %s balance of %f is less than current balance %f * 0.8 (%f)`,
@@ -129,9 +133,10 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 
 			log.Printf(`Placing an order to %s %s %s for %s %s`, o.Side, o.Size, pair[0], o.Price, pair[1])
 			Request(`POST`, `/orders`, o)
+			orderMade = 1
 		}
 
-		done <- true
+		done <- orderMade
 	}()
 	return done
 }

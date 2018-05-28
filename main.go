@@ -185,7 +185,19 @@ func main() {
 		log.Fatal(`Cancel Order request failed: ` + err.Error())
 	}
 
-	<-gdax.Rebalance(market.GetProductID(`LTC`, `BTC`), accountCMDs, orderCMDs) // wait for rebalance.
+	// wait for rebalance.
+	orderStatus := <-gdax.Rebalance(market.GetProductID(`LTC`, `BTC`), accountCMDs, orderCMDs)
+
+	switch orderStatus {
+	case -1:
+		log.Fatal(`error placing rebalance order`)
+	case 0:
+		log.Println(`no rebalance was needed.  Need to place spread orders.`)
+	case 1:
+		log.Println(`rebalance order placed.  Once the done signal sends, we can place our spread.`)
+	default:
+		log.Fatal(`unknown order satatus code.  You done f'ed up your code.`)
+	}
 
 	/**
 	 * Block until an exit message is received
