@@ -76,13 +76,13 @@ func Rebalance(pair market.ProductID, aCmd chan market.AccountCommand, oCmd chan
 
 		orderMade := 0
 
-		if newLeftBal > leftBalance*0.8 {
+		if newLeftBal > leftBalance*1.2 {
 			log.Printf(
 				`Target %s balance of %f is greater than current balance %f * 0.8 (%f)`,
 				pair[0],
 				newLeftBal,
 				leftBalance,
-				leftBalance*0.8,
+				leftBalance*1.2,
 			)
 
 			amtToBuy := newLeftBal - leftBalance

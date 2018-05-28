@@ -153,19 +153,7 @@ func main() {
 	/**
 	 * Subscribe message to GDAX initiates the websocket messages.
 	 */
-	//gdax.Subscribe()
-
-	// TEMPORARY manual code to make an order
-	// o := market.MakeOrder(market.Side("sell"), market.Size("5.0"), market.Price("117.03"))
-
-	// orders := make(chan *market.Order)
-	// defer close(orders)
-	// create := &market.CreateOrder{Order: o, Resp: orders}
-	// orderCMDs <- create
-	// create.Orders() <- o
-
-	// log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
-	// gdax.Request(`POST`, `/orders`, o)
+	gdax.Subscribe()
 
 	accounts, err := gdax.GetAccounts()
 	if err != nil {
