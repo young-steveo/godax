@@ -6,13 +6,17 @@ import (
 
 // Keeper is a struct that manages state for a book via channels
 type Keeper struct {
-	book     MyBook
-	commands chan OrderCommand
+	accounts        Accounts
+	book            MyBook
+	orderCommands   chan OrderCommand
+	accountCommands chan AccountCommand
 }
 
 // MakeKeeper is a constructor
-func MakeKeeper(book MyBook, commands chan OrderCommand) *Keeper {
-	return &Keeper{book, commands}
+func MakeKeeper(oCommands chan OrderCommand, aCommands chan AccountCommand) *Keeper {
+	book := make(MyBook, 0)
+	accounts := make(Accounts, 0)
+	return &Keeper{accounts, book, oCommands, aCommands}
 }
 
 // Listen starts an infinite loop and consumes operations until the done channel tells it to quit.
@@ -20,16 +24,22 @@ func (k *Keeper) Listen(done chan bool) {
 	defer close(done)
 	for {
 		select {
-		case command := <-k.commands:
-			k.handleCommand(command)
+		case command := <-k.orderCommands:
+			k.handleOrderCommand(command)
+		case command := <-k.accountCommands:
+			k.handleAccountCommand(command)
 		case <-done:
 			return
 		}
 	}
 }
 
-func (k *Keeper) handleCommand(command OrderCommand) {
+func (k *Keeper) handleOrderCommand(command OrderCommand) {
 	switch command.Type() {
+	case Create:
+		order := <-command.Orders()
+		log.Printf(`Adding order to local book %s`, order.ClientID)
+		k.book = append(k.book, order)
 	case Read:
 		command.Orders() <- k.book.GetByClientID(command.ClientID())
 	case Update:
@@ -40,9 +50,14 @@ func (k *Keeper) handleCommand(command OrderCommand) {
 			o.ServerID = serverID
 		}
 		command.Orders() <- o
+	}
+}
+
+func (k *Keeper) handleAccountCommand(command AccountCommand) {
+	switch command.Type() {
 	case Create:
-		order := <-command.Orders()
-		log.Printf(`Adding order to local book %s`, order.ClientID)
-		k.book = append(k.book, order)
+		account := <-command.Accounts()
+		log.Printf(`Adding account to local accounts %s`, account.Currency)
+		k.accounts = append(k.accounts, account)
 	}
 }

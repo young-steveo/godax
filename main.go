@@ -55,11 +55,11 @@ func main() {
 	/**
 	 * Manage the Book
 	 */
-	commands := make(chan market.OrderCommand)
+	orderCMDs := make(chan market.OrderCommand)
+	accountCMDs := make(chan market.AccountCommand)
 	go func() {
 		close := make(chan bool)
-		book := make(market.MyBook, 0)
-		keeper := market.MakeKeeper(book, commands)
+		keeper := market.MakeKeeper(orderCMDs, accountCMDs)
 		keeper.Listen(close) // contains a blocking loop
 	}()
 
@@ -133,7 +133,7 @@ func main() {
 					continue
 				}
 
-				commands <- &market.UpdateOrder{ClientIDValue: clientID, ServerIDValue: orderID, Resp: orders}
+				orderCMDs <- &market.UpdateOrder{ClientIDValue: clientID, ServerIDValue: orderID, Resp: orders}
 			} else {
 				break
 			}
@@ -153,19 +153,30 @@ func main() {
 	/**
 	 * Subscribe message to GDAX initiates the websocket messages.
 	 */
-	gdax.Subscribe()
+	//gdax.Subscribe()
 
 	// TEMPORARY manual code to make an order
-	o := market.MakeOrder(market.Side("sell"), market.Size("5.0"), market.Price("117.03"))
+	// o := market.MakeOrder(market.Side("sell"), market.Size("5.0"), market.Price("117.03"))
 
-	orders := make(chan *market.Order)
-	defer close(orders)
-	create := &market.CreateOrder{Order: o, Resp: orders}
-	commands <- create
-	create.Orders() <- o
+	// orders := make(chan *market.Order)
+	// defer close(orders)
+	// create := &market.CreateOrder{Order: o, Resp: orders}
+	// orderCMDs <- create
+	// create.Orders() <- o
 
-	log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
-	gdax.Request(`POST`, `/orders`, o)
+	// log.Printf(`Placing an order to %s %s LTC for $%s`, o.Side, o.Size, o.Price)
+	// gdax.Request(`POST`, `/orders`, o)
+
+	accounts, err := gdax.GetAccounts()
+	if err != nil {
+		log.Fatal(`error: ` + err.Error())
+	}
+	for _, account := range accounts {
+		accountChannel := make(chan *market.Account)
+		add := &market.AddAccount{Ticker: account.Currency, Resp: accountChannel}
+		accountCMDs <- add
+		add.Accounts() <- account
+	}
 
 	/**
 	 * Block until an exit message is received
