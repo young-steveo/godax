@@ -176,6 +176,7 @@ func main() {
 		add := &market.AddAccount{Ticker: account.Currency, Resp: accountChannel}
 		accountCMDs <- add
 		add.Accounts() <- account
+		<-add.Accounts() // wait till it's done
 	}
 
 	/**
