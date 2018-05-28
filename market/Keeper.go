@@ -60,5 +60,7 @@ func (k *Keeper) handleAccountCommand(command AccountCommand) {
 		log.Printf(`Adding account to local accounts %s`, account.Currency)
 		k.accounts = append(k.accounts, account)
 		command.Accounts() <- account // send it back so we know we're done.
+	case Read:
+		command.Accounts() <- k.accounts.GetByCurrency(command.Currency())
 	}
 }

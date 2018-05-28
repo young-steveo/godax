@@ -179,6 +179,14 @@ func main() {
 		<-add.Accounts() // wait till it's done
 	}
 
+	log.Println(`Canceling all pending orders`)
+	_, err = gdax.Request(`DELETE`, `/orders`, nil)
+	if err != nil {
+		log.Fatal(`Cancel Order request failed: ` + err.Error())
+	}
+
+	<-gdax.Rebalance(market.GetProductID(`LTC`, `BTC`), accountCMDs, orderCMDs) // wait for rebalance.
+
 	/**
 	 * Block until an exit message is received
 	 */

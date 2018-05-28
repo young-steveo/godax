@@ -28,13 +28,13 @@ type Order struct {
 }
 
 // MakeOrder makes a new order
-func MakeOrder(side Side, size Size, price Price) *Order {
+func MakeOrder(side Side, size Size, price Price, pair ProductID) *Order {
 	clientID := uuid.New()
 	return &Order{
 		ClientID:    clientID,
 		Type:        `limit`,
 		Side:        side,
-		ProductID:   ProductID([]Ticker{LTC, USD}),
+		ProductID:   pair,
 		Stp:         CancelOldest,
 		Size:        size,
 		Price:       price,

@@ -61,7 +61,9 @@ func Request(method string, uri string, msg interface{}) (res *http.Response, er
 
 	res, err = httpClient.Do(req)
 	if err != nil {
-		res.Body.Close()
+		if res != nil {
+			res.Body.Close()
+		}
 		return res, err
 	}
 
