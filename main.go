@@ -75,7 +75,6 @@ func main() {
 				gdax.Unsubscribe()
 				return
 			}
-			log.Println(string(message))
 
 			typ, _ := jsonparser.GetUnsafeString(message, `type`)
 
@@ -93,9 +92,29 @@ func main() {
 	 */
 	go func() {
 		for {
-			if _, more := <-done; more {
-
+			if msg, more := <-done; more {
 				// need to clean out local order and place new orders
+				log.Println(string(msg))
+				reason, err := jsonparser.GetString(msg, `reason`)
+				if err != nil {
+					log.Println(`Error reading reason from done message.  Skipping.`)
+					continue
+				}
+				if reason == `canceled` {
+					log.Println(`Order canceled, skipping done handler.`)
+					continue
+				}
+				oid, err := jsonparser.GetString(msg, `order_id`)
+				if err != nil {
+					log.Println(`Error reading order_id from done message.  Skipping.`)
+					continue
+				}
+				orderID, err := uuid.Parse(oid)
+				if err != nil {
+					log.Println(`Error parsing order_id from done message.  Skipping.`)
+					continue
+				}
+				orderCMDs <- &market.CompleteOrder{ID: orderID, Resp: make(chan *market.Order)}
 			} else {
 				break
 			}
@@ -180,11 +199,11 @@ func main() {
 	case -1:
 		log.Fatal(`error placing rebalance order`)
 	case 0:
-		log.Println(`no rebalance was needed.  Need to place spread orders.`)
+		log.Println(`No rebalance was needed.  Need to place spread orders.`)
 	case 1:
-		log.Println(`rebalance order placed.  Once the done signal sends, we can place our spread.`)
+		log.Println(`Rebalance order placed.  Once the done signal sends, we can place our spread.`)
 	default:
-		log.Fatal(`unknown order satatus code.  You done f'ed up your code.`)
+		log.Fatal(`Unknown order satatus code.  You done f'ed up your code.`)
 	}
 
 	/**
