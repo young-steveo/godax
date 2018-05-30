@@ -10,9 +10,7 @@ import (
 )
 
 // GetAccounts will return a slice of market.Account pointers
-func GetAccounts() ([]*market.Account, error) {
-	var accounts []*market.Account
-
+func GetAccounts() (*market.Accounts, error) {
 	response, err := Request(`GET`, `/accounts`, nil)
 	if err != nil {
 		return accounts, err
@@ -68,7 +66,7 @@ func GetAccounts() ([]*market.Account, error) {
 			return
 		}
 
-		accounts = append(accounts, &market.Account{
+		accounts.AddAccount(&market.Account{
 			ID:        id,
 			ProfileID: ProfileID,
 			Currency:  market.Ticker(currency),

@@ -10,14 +10,12 @@ import (
 
 	"github.com/young-steveo/godax/gdax"
 	"github.com/young-steveo/godax/market"
-	"github.com/young-steveo/godax/message"
 
 	"github.com/buger/jsonparser"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	fmt.Println(string(message.Subscribe()))
 	log.SetOutput(os.Stdout)
 	log.Println(`¡Hola! Let's make some trades`)
 	log.Println(`===`)
@@ -53,17 +51,6 @@ func main() {
 	defer gdax.Close() // close the websocket when the main function exits.
 
 	/**
-	 * Manage the Book
-	 */
-	orderCMDs := make(chan market.OrderCommand)
-	accountCMDs := make(chan market.AccountCommand)
-	go func() {
-		close := make(chan bool)
-		keeper := market.MakeKeeper(orderCMDs, accountCMDs)
-		keeper.Listen(close) // contains a blocking loop
-	}()
-
-	/**
 	 * Consume all websocket messages and route them to the proper channel.
 	 */
 	go func() {
@@ -79,44 +66,10 @@ func main() {
 			typ, _ := jsonparser.GetUnsafeString(message, `type`)
 
 			switch typ {
-			case `done`:
-				done <- message
 			case `received`:
 				received <- message
-			}
-		}
-	}()
-
-	/**
-	 * Done messages from GDAX
-	 */
-	go func() {
-		for {
-			if msg, more := <-done; more {
-				// need to clean out local order and place new orders
-				log.Println(string(msg))
-				reason, err := jsonparser.GetString(msg, `reason`)
-				if err != nil {
-					log.Println(`Error reading reason from done message.  Skipping.`)
-					continue
-				}
-				if reason == `canceled` {
-					log.Println(`Order canceled, skipping done handler.`)
-					continue
-				}
-				oid, err := jsonparser.GetString(msg, `order_id`)
-				if err != nil {
-					log.Println(`Error reading order_id from done message.  Skipping.`)
-					continue
-				}
-				orderID, err := uuid.Parse(oid)
-				if err != nil {
-					log.Println(`Error parsing order_id from done message.  Skipping.`)
-					continue
-				}
-				orderCMDs <- &market.CompleteOrder{ID: orderID, Resp: make(chan *market.Order)}
-			} else {
-				break
+			case `done`:
+				done <- message
 			}
 		}
 	}()
@@ -152,7 +105,45 @@ func main() {
 					continue
 				}
 
-				orderCMDs <- &market.UpdateOrder{ClientIDValue: clientID, ServerIDValue: orderID, Resp: orders}
+				_ = clientID
+				_ = orderID
+
+				// @todo UPDATE LOCAL ORDER ID
+			} else {
+				break
+			}
+		}
+	}()
+
+	/**
+	 * Done messages from GDAX
+	 */
+	go func() {
+		for {
+			if msg, more := <-done; more {
+				// need to clean out local order and place new orders
+				log.Println(string(msg))
+				reason, err := jsonparser.GetString(msg, `reason`)
+				if err != nil {
+					log.Println(`Error reading reason from done message.  Skipping.`)
+					continue
+				}
+				if reason == `canceled` {
+					log.Println(`Order canceled, skipping done handler.`)
+					continue
+				}
+				oid, err := jsonparser.GetString(msg, `order_id`)
+				if err != nil {
+					log.Println(`Error reading order_id from done message.  Skipping.`)
+					continue
+				}
+				orderID, err := uuid.Parse(oid)
+				if err != nil {
+					log.Println(`Error parsing order_id from done message.  Skipping.`)
+					continue
+				}
+				// @todo HANDLE DONE LOGIC HERE
+				_ = orderID
 			} else {
 				break
 			}
@@ -172,19 +163,14 @@ func main() {
 	/**
 	 * Subscribe message to GDAX initiates the websocket messages.
 	 */
-	gdax.Subscribe()
+	gdax.Subscribe(market.ProductID{market.LTC, market.BTC})
 
-	accounts, err := gdax.GetAccounts()
+	_, err = gdax.GetAccounts()
 	if err != nil {
 		log.Fatal(`error: ` + err.Error())
 	}
-	for _, account := range accounts {
-		accountChannel := make(chan *market.Account)
-		add := &market.AddAccount{Ticker: account.Currency, Resp: accountChannel}
-		accountCMDs <- add
-		add.Accounts() <- account
-		<-add.Accounts() // wait till it's done
-	}
+
+	// @todo Delete the above and just get what I need
 
 	log.Println(`Canceling all pending orders`)
 	_, err = gdax.Request(`DELETE`, `/orders`, nil)
@@ -193,8 +179,11 @@ func main() {
 	}
 
 	// wait for rebalance.
-	orderStatus := <-gdax.Rebalance(market.GetProductID(`LTC`, `BTC`), accountCMDs, orderCMDs)
+	orderStatus, err := gdax.Rebalance(market.GetProductID(`LTC`, `BTC`))
 
+	if err != nil {
+		log.Fatal(`Rebalance Failed: ` + err.Error())
+	}
 	switch orderStatus {
 	case -1:
 		log.Fatal(`error placing rebalance order`)
