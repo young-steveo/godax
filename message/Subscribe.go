@@ -21,7 +21,7 @@ type subscribeMessage struct {
 }
 
 // Subscribe is a GDAX websocket subscribe message
-func Subscribe() []byte {
+func Subscribe(productID market.ProductID) []byte {
 	key := os.Getenv(`GDAX_KEY`)
 	passphrase := os.Getenv(`GDAX_PASSPHRASE`)
 	stamp := strconv.FormatInt(time.Now().Unix(), 10)
@@ -32,7 +32,7 @@ func Subscribe() []byte {
 
 	message, _ := json.Marshal(subscribeMessage{
 		`subscribe`,
-		[]market.ProductID{market.ProductID{market.LTC, market.BTC}},
+		[]market.ProductID{productID},
 		[]string{`heartbeat`, `user`, `ticker`},
 		key,
 		passphrase,

@@ -4,7 +4,7 @@ package message
 func Unsubscribe() []byte {
 	return []byte(`{
 		"type": "unsubscribe",
-		"product_ids": ["LTC-USD"],
+		"product_ids": ["LTC-BTC"],
 		"channels": ["heartbeat","user","ticker"]
 	}`)
 }
