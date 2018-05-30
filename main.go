@@ -105,10 +105,7 @@ func main() {
 					continue
 				}
 
-				_ = clientID
-				_ = orderID
-
-				// @todo UPDATE LOCAL ORDER ID
+				gdax.SyncOrderID(clientID, orderID)
 			} else {
 				break
 			}
@@ -142,8 +139,7 @@ func main() {
 					log.Println(`Error parsing order_id from done message.  Skipping.`)
 					continue
 				}
-				// @todo HANDLE DONE LOGIC HERE
-				_ = orderID
+				gdax.RemoveOrder(orderID)
 			} else {
 				break
 			}

@@ -36,3 +36,26 @@ func (book *Book) AddOrder(order *Order) {
 	book.List = append(book.List, order)
 	book.Mutex.Unlock()
 }
+
+// SyncOrderID updates an order's ServerID by ClientID
+func (book *Book) SyncOrderID(clientID uuid.UUID, orderID uuid.UUID) {
+	order := book.GetByClientID(clientID)
+	book.Mutex.Lock()
+	order.ServerID = orderID
+	book.Mutex.Unlock()
+}
+
+// RemoveOrder removes an order by serverID
+func (book *Book) RemoveOrder(orderID uuid.UUID) {
+	var index int
+	var o *Order
+	book.Mutex.Lock()
+	for index, o = range book.List {
+		if o.ServerID == orderID {
+			book.List = append(book.List[:index], book.List[index+1:]...)
+			book.Mutex.Unlock()
+			return
+		}
+	}
+	book.Mutex.Unlock()
+}
