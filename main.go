@@ -186,7 +186,7 @@ func main() {
 		log.Fatal(`error placing rebalance order`)
 	case 0:
 		log.Println(`No rebalance was needed.`)
-		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), 0.01583)
+		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), market.Price(`0.01583`))
 	case 1:
 		log.Println(`Rebalance order placed.  Once the done signal sends, we can place our spread.`)
 	default:

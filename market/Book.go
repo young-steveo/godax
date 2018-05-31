@@ -1,14 +1,10 @@
 package market
 
 import (
-	"log"
-	"strconv"
 	"sync"
 
 	"github.com/google/uuid"
 )
-
-var epsilon = 0.0000001
 
 // Book represents all of my orders
 type Book struct {
@@ -48,16 +44,14 @@ func (book *Book) GetByServerID(id uuid.UUID) *Order {
 }
 
 // GetByPrice will find the order by Price and ProductID
-func (book *Book) GetByPrice(price float64) *Order {
+func (book *Book) GetByPrice(price Price) *Order {
 	book.Mutex.Lock()
 	for _, o := range book.List {
-		oPrice, err := strconv.ParseFloat(string(o.Price), 64)
+		same, err := o.Price.Equals(price)
 		if err != nil {
-			book.Mutex.Unlock()
-			log.Printf(`Error converting price to float: %s`, err.Error())
-			return nil
+			continue
 		}
-		if (price-oPrice) < epsilon && (oPrice-price) < epsilon {
+		if same {
 			book.Mutex.Unlock()
 			return o
 		}

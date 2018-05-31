@@ -3,44 +3,33 @@ package gdax
 import (
 	"io/ioutil"
 	"log"
-	"strconv"
 
 	"github.com/buger/jsonparser"
 	"github.com/young-steveo/godax/market"
 )
 
 // PlaceSpread will make two orders
-func PlaceSpread(pid market.ProductID, price float64) {
+func PlaceSpread(pid market.ProductID, price market.Price) {
 	log.Printf(`Placing Spread order for %s around %f`, pid, price)
 	increment(pid, price, 0)
 	decrement(pid, price, 0)
 }
 
-func increment(pid market.ProductID, price float64, times int) bool {
-	old := book.GetByPrice(price + 0.00001)
+func increment(pid market.ProductID, price market.Price, times int) bool {
+	price, err := price.Add(market.Price(`0.00001`))
+	if err != nil {
+		log.Println(`Could not add prices for increment: ` + err.Error())
+	}
+	old := book.GetByPrice(price)
 	if old != nil {
-		log.Printf(`Existing order for price %f`, price+0.00001)
+		log.Printf(`Existing order for price %s`, price)
 		return true
 	}
-	sell := market.MakeOrder(
-		market.Side(`sell`),
-		market.Size(`0.1`),
-
-		// fixme (should not be hardcoded, should get increments from gdax)
-		market.Price(strconv.FormatFloat(price+0.00001, 'f', 8, 64)),
-		pid,
-	)
+	sell := market.MakeOrder(market.Side(`sell`), market.Size(`0.1`), price, pid)
 
 	book.AddOrder(sell)
 
-	log.Printf(
-		`Placing an order to %s %s %s for %s %s`,
-		sell.Side,
-		sell.Size,
-		pid[0],
-		sell.Price,
-		pid[1],
-	)
+	log.Printf(`%s %s %s for %s %s`, sell.Side, sell.Size, pid[0], sell.Price, pid[1])
 	res, err := Request(`POST`, `/orders`, sell)
 	if err != nil {
 		log.Println(`Could not make sell request: ` + err.Error())
@@ -57,37 +46,27 @@ func increment(pid market.ProductID, price float64, times int) bool {
 		return false
 	}
 	if status == `rejected` && times < 10 {
-		log.Printf(`Sell order rejected, increasing price to %f`, price+0.00001)
-		// decrement(pid, price+0.00001, 9)
-		return increment(pid, price+0.00001, times+1)
+		log.Printf(`Sell order rejected, increasing price to %s`, price)
+		return increment(pid, price, times+1)
 	}
 	return times < 10
 }
 
-func decrement(pid market.ProductID, price float64, times int) bool {
-	old := book.GetByPrice(price - 0.00001)
+func decrement(pid market.ProductID, price market.Price, times int) bool {
+	price, err := price.Subtract(market.Price(`0.00001`))
+	if err != nil {
+		log.Println(`Could not subtract prices for increment: ` + err.Error())
+	}
+	old := book.GetByPrice(price)
 	if old != nil {
-		log.Printf(`Existing order for price %f`, price-0.00001)
+		log.Printf(`Existing order for price %s`, price)
 		return true
 	}
-	buy := market.MakeOrder(
-		market.Side(`buy`),
-		market.Size(`0.1`),
-
-		// fixme (should not be hardcoded, should get increments from gdax)
-		market.Price(strconv.FormatFloat(price-0.00001, 'f', 8, 64)),
-		pid,
-	)
+	buy := market.MakeOrder(market.Side(`buy`), market.Size(`0.1`), price, pid)
 
 	book.AddOrder(buy)
 
-	log.Printf(
-		`Placing an order to %s %s %s for %s %s`,
-		buy.Side,
-		buy.Size,
-		pid[0],
-		buy.Price, pid[1],
-	)
+	log.Printf(`%s %s %s for %s %s`, buy.Side, buy.Size, pid[0], buy.Price, pid[1])
 	res, err := Request(`POST`, `/orders`, buy)
 	if err != nil {
 		log.Println(`Could not make buy request: ` + err.Error())
@@ -104,9 +83,9 @@ func decrement(pid market.ProductID, price float64, times int) bool {
 		return false
 	}
 	if status == `rejected` && times < 10 {
-		log.Printf(`Buy order rejected, decreasing price to %f`, price-0.00001)
-		// increment(pid, price-0.00001, 9)
-		return decrement(pid, price-0.00001, times+1)
+		log.Printf(`Buy order rejected, decreasing price to %s`, price)
+		// increment(pid, price, 9)
+		return decrement(pid, price, times+1)
 	}
 	return times < 10
 }

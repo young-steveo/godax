@@ -7,9 +7,6 @@ import (
 // Size of the order.
 type Size string
 
-// Price of the order.
-type Price string
-
 // Side of the order "buy" or "sell"
 type Side string
 
