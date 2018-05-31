@@ -103,7 +103,7 @@ func Rebalance(pair market.ProductID) (int, error) {
 			market.Size(strconv.FormatFloat(amtToSell, 'f', 8, 64)),
 
 			// fixme (should not be hardcoded, should get increments from gdax)
-			market.Price(strconv.FormatFloat(price-0.00001, 'f', 8, 64)),
+			market.Price(strconv.FormatFloat(price+0.00001, 'f', 8, 64)),
 			pair,
 		)
 

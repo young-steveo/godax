@@ -139,6 +139,7 @@ func main() {
 					log.Println(`Error parsing order_id from done message.  Skipping.`)
 					continue
 				}
+				gdax.PlaceSpreadFrom(orderID)
 				gdax.RemoveOrder(orderID)
 			} else {
 				break
@@ -184,7 +185,8 @@ func main() {
 	case -1:
 		log.Fatal(`error placing rebalance order`)
 	case 0:
-		log.Println(`No rebalance was needed.  Need to place spread orders.`)
+		log.Println(`No rebalance was needed.`)
+		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), 0.01588)
 	case 1:
 		log.Println(`Rebalance order placed.  Once the done signal sends, we can place our spread.`)
 	default:

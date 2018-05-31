@@ -30,6 +30,19 @@ func (book *Book) GetByClientID(id uuid.UUID) *Order {
 	return nil
 }
 
+// GetByServerID will find the order by ClientID
+func (book *Book) GetByServerID(id uuid.UUID) *Order {
+	book.Mutex.Lock()
+	for _, o := range book.List {
+		if o.ServerID == id {
+			book.Mutex.Unlock()
+			return o
+		}
+	}
+	book.Mutex.Unlock()
+	return nil
+}
+
 // AddOrder adds an order to the list
 func (book *Book) AddOrder(order *Order) {
 	book.Mutex.Lock()
