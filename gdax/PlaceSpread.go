@@ -17,6 +17,11 @@ func PlaceSpread(pid market.ProductID, price float64) {
 }
 
 func increment(pid market.ProductID, price float64, times int) bool {
+	old := book.GetByPrice(price + 0.00001)
+	if old != nil {
+		log.Printf(`Existing order for price %f`, price+0.00001)
+		return true
+	}
 	sell := market.MakeOrder(
 		market.Side(`sell`),
 		market.Size(`0.1`),
@@ -53,12 +58,18 @@ func increment(pid market.ProductID, price float64, times int) bool {
 	}
 	if status == `rejected` && times < 10 {
 		log.Printf(`Sell order rejected, increasing price to %f`, price+0.00001)
+		// decrement(pid, price+0.00001, 9)
 		return increment(pid, price+0.00001, times+1)
 	}
 	return times < 10
 }
 
 func decrement(pid market.ProductID, price float64, times int) bool {
+	old := book.GetByPrice(price - 0.00001)
+	if old != nil {
+		log.Printf(`Existing order for price %f`, price-0.00001)
+		return true
+	}
 	buy := market.MakeOrder(
 		market.Side(`buy`),
 		market.Size(`0.1`),
@@ -94,6 +105,7 @@ func decrement(pid market.ProductID, price float64, times int) bool {
 	}
 	if status == `rejected` && times < 10 {
 		log.Printf(`Buy order rejected, decreasing price to %f`, price-0.00001)
+		// increment(pid, price-0.00001, 9)
 		return decrement(pid, price-0.00001, times+1)
 	}
 	return times < 10
