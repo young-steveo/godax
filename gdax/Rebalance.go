@@ -11,24 +11,24 @@ import (
 )
 
 // Rebalance will try to use limit orders to make sure both assets of a pair are balanced.
-func Rebalance(pair market.ProductID) (int, error) {
+func Rebalance(pair market.ProductID) (int, float64, error) {
 	log.Printf(`Rebalancing %s pair`, pair)
 	log.Printf(`Requesting %s product information`, pair)
 	resp, err := Request(`GET`, fmt.Sprintf(`/products/%s/ticker`, pair), nil)
 	if err != nil {
 		log.Printf(`Error making request: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf(`Error parsing body: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 	p, err := jsonparser.GetString(body, `price`)
 	if err != nil {
 		log.Printf(`Error parsing price: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 	leftAccount := accounts.GetByCurrency(pair[0])
 	rightAccount := accounts.GetByCurrency(pair[1])
@@ -36,19 +36,19 @@ func Rebalance(pair market.ProductID) (int, error) {
 	price, err := strconv.ParseFloat(p, 64)
 	if err != nil {
 		log.Printf(`Error converting price to float: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 
-	leftBalance, err := strconv.ParseFloat(leftAccount.Available, 64)
+	leftBalance, err := strconv.ParseFloat(leftAccount.Balance, 64)
 	if err != nil {
 		log.Printf(`Error converting price to float: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 
-	rightBalance, err := strconv.ParseFloat(rightAccount.Available, 64)
+	rightBalance, err := strconv.ParseFloat(rightAccount.Balance, 64)
 	if err != nil {
 		log.Printf(`Error converting price to float: %s`, err.Error())
-		return -1, err
+		return -1, 0.0, err
 	}
 
 	allRight := rightBalance + (leftBalance * price)
@@ -114,5 +114,5 @@ func Rebalance(pair market.ProductID) (int, error) {
 		orderMade = 1
 	}
 
-	return orderMade, nil
+	return orderMade, allRight, nil
 }

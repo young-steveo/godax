@@ -1,6 +1,7 @@
 package market
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/google/uuid"
@@ -75,17 +76,51 @@ func (book *Book) SyncOrderID(clientID uuid.UUID, orderID uuid.UUID) {
 	book.Mutex.Unlock()
 }
 
-// RemoveOrder removes an order by serverID
+// RemoveOrder removes an order by serverID or clientID
 func (book *Book) RemoveOrder(orderID uuid.UUID) {
 	var index int
 	var o *Order
 	book.Mutex.Lock()
 	for index, o = range book.List {
-		if o.ServerID == orderID {
+		if o.ServerID == orderID || o.ClientID == orderID {
 			book.List = append(book.List[:index], book.List[index+1:]...)
 			book.Mutex.Unlock()
 			return
 		}
 	}
 	book.Mutex.Unlock()
+}
+
+// GapPrices will return a slice of Prices for gaps in the book
+func (book *Book) GapPrices(pid ProductID) map[Price]Side {
+	var orders []*Order
+	prices := make(map[Price]Side)
+	book.Mutex.Lock()
+	for _, o := range book.List {
+		orders = append(orders, o)
+	}
+	book.Mutex.Unlock()
+
+	sort.Slice(orders, func(i, j int) bool {
+		less, _ := orders[i].Price.Less(orders[j].Price)
+		return less
+	})
+	var current Price
+	inc := ProductIncrement[pid]
+	for i, order := range orders {
+		if i == 0 {
+			current = order.Price
+			continue
+		}
+		current, _ = current.Add(inc)
+		eq, _ := order.Price.Equals(current)
+		// previous price + increment is not equal to current sorted price, so we must have a gap.
+		for !eq || len(prices) > 5 {
+			prices[current] = order.Side
+			current, _ = current.Add(inc)
+			eq, _ = order.Price.Equals(current)
+		}
+		current = order.Price
+	}
+	return prices
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -32,6 +33,7 @@ func main() {
 	 */
 	sigs := make(chan os.Signal)
 	exit := make(chan int)
+	stopFill := make(chan int)
 	signal.Notify(sigs, os.Interrupt)
 
 	/**
@@ -148,13 +150,38 @@ func main() {
 	}()
 
 	/**
+	 * Fill gaps
+	 */
+	go func() {
+		defer close(stopFill)
+		for {
+			select {
+			case <-stopFill:
+				break
+			default:
+				gdax.FillGaps(market.GetProductID(`LTC`, `BTC`))
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}()
+
+	/**
+	 * Tracking
+	 */
+	var start float64
+	var end float64
+
+	/**
 	 * Graceful shutdown.  Unsubscribes to the websocket
 	 */
 	go func() {
 		defer close(exit) // close the exit channel when we are finished cleaning up.
 		<-sigs            // wait for a signal.
 		log.Printf("Shutting down")
+		stopFill <- 0
 		gdax.Unsubscribe()
+		end, _ = gdax.GetBalance(market.GetProductID(`LTC`, `BTC`))
+		fmt.Printf(`Delta in BTC: %f`, end-start)
 	}()
 
 	/**
@@ -176,7 +203,8 @@ func main() {
 	}
 
 	// wait for rebalance.
-	orderStatus, err := gdax.Rebalance(market.GetProductID(`LTC`, `BTC`))
+	var orderStatus int
+	orderStatus, start, err = gdax.Rebalance(market.GetProductID(`LTC`, `BTC`))
 
 	if err != nil {
 		log.Fatal(`Rebalance Failed: ` + err.Error())
@@ -186,7 +214,7 @@ func main() {
 		log.Fatal(`error placing rebalance order`)
 	case 0:
 		log.Println(`No rebalance was needed.`)
-		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), market.Price(`0.01583`))
+		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), market.Price(`0.01606`))
 	case 1:
 		log.Println(`Rebalance order placed.  Once the done signal sends, we can place our spread.`)
 	default:

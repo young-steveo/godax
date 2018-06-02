@@ -5,7 +5,7 @@ import (
 )
 
 // ProductID is a pair of tickers
-type ProductID []Ticker
+type ProductID [2]Ticker
 
 // GetProductID will return a ProductID pair of tickers.
 func GetProductID(left string, right string) ProductID {
