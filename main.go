@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,15 @@ import (
 )
 
 func main() {
+	var leftTicker string
+	var rightTicker string
+
+	flag.StringVar(&leftTicker, `left`, `LTC`, `Left side of pair, e.g. LTC`)
+	flag.StringVar(&rightTicker, `right`, `BTC`, `Right side of pair, e.g. BTC`)
+	flag.Parse()
+
+	productID := market.GetProductID(leftTicker, rightTicker)
+
 	log.SetOutput(os.Stdout)
 	log.Println(`¡Hola! Let's make some trades`)
 	log.Println(`===`)
@@ -159,7 +169,7 @@ func main() {
 			case <-stopFill:
 				break
 			default:
-				gdax.FillGaps(market.GetProductID(`LTC`, `BTC`))
+				gdax.FillGaps(productID)
 				time.Sleep(5 * time.Second)
 			}
 		}
@@ -180,21 +190,23 @@ func main() {
 		log.Printf("Shutting down")
 		stopFill <- 0
 		gdax.Unsubscribe()
-		end, _ = gdax.GetBalance(market.GetProductID(`LTC`, `BTC`))
-		fmt.Printf(`Delta in BTC: %f`, end-start)
+		end, _, _ = gdax.GetBalance(productID)
+		log.Printf(`Delta in BTC: %f`, end-start)
 	}()
 
 	/**
 	 * Subscribe message to GDAX initiates the websocket messages.
 	 */
-	gdax.Subscribe(market.ProductID{market.LTC, market.BTC})
+	gdax.Subscribe(productID)
 
-	_, err = gdax.GetAccounts()
+	accts, err := gdax.GetAccounts()
 	if err != nil {
 		log.Fatal(`error: ` + err.Error())
 	}
 
-	// @todo Delete the above and just get what I need
+	acct := accts.GetByCurrency(productID[0])
+
+	
 
 	log.Println(`Canceling all pending orders`)
 	_, err = gdax.Request(`DELETE`, `/orders`, nil)
@@ -204,7 +216,7 @@ func main() {
 
 	// wait for rebalance.
 	var orderStatus int
-	orderStatus, start, err = gdax.Rebalance(market.GetProductID(`LTC`, `BTC`))
+	orderStatus, start, err = gdax.Rebalance(productID)
 
 	if err != nil {
 		log.Fatal(`Rebalance Failed: ` + err.Error())
@@ -214,7 +226,11 @@ func main() {
 		log.Fatal(`error placing rebalance order`)
 	case 0:
 		log.Println(`No rebalance was needed.`)
-		gdax.PlaceSpread(market.GetProductID(`LTC`, `BTC`), market.Price(`0.01606`))
+		_, price, err := gdax.GetBalance(productID)
+		if err != nil {
+			log.Fatal(`GetBalance Failed: ` + err.Error())
+		}
+		gdax.PlaceSpread(productID, price)
 	case 1:
 		log.Println(`Rebalance order placed.  Once the done signal sends, we can place our spread.`)
 	default:
